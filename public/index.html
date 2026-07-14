@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>clipsync — Mindful Workspace</title>
+<link rel="icon" href="data:," />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f5f0;
+    --panel: #f0ebe1;
+    --panel-raised: #e6dfd3;
+    --line: #e2dbce;
+    --line-focus: #b8ac9b;
+    --text: #2a2621;
+    --text-dim: #6e655f;
+    --terracotta: #c4765a;
+    --terracotta-hover: #d2856a;
+    --terracotta-alpha: rgba(196, 118, 90, 0.12);
+    --moss: #687661;
+    --ochre: #cca160;
+    --ok: #687661;
+    --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    --sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --serif: "Cormorant Garamond", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+  
+  html, body { 
+    height: 100%; 
+    background-color: var(--bg);
+  }
+
+  body {
+    margin: 0;
+    /* Subtle organic washi paper grain */
+    background-image: radial-gradient(rgba(42, 38, 33, 0.035) 1px, transparent 0);
+    background-size: 24px 24px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .wrap {
+    max-width: 620px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--serif);
+    letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+
+  .brand .jack {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--terracotta);
+    box-shadow: 
+      0 0 0 4px var(--terracotta-alpha),
+      0 2px 6px rgba(196, 118, 90, 0.25);
+  }
+
+  .brand b { 
+    font-weight: 600; 
+    font-size: 22px; 
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .presence {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    display: flex; 
+    align-items: center; 
+    gap: 8px;
+    background: var(--panel);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+  }
+
+  .presence .dot { 
+    width: 6px; 
+    height: 6px; 
+    border-radius: 50%; 
+    background: var(--moss); 
+    box-shadow: 0 0 0 3px rgba(104, 118, 97, 0.15);
+  }
+
+  /* ---------- pairing screen ---------- */
+  .pair-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 48px 36px;
+    text-align: center;
+    box-shadow: 0 16px 32px -12px rgba(42, 38, 33, 0.05);
+  }
+
+  .pair-card h1 {
+    font-family: var(--serif);
+    font-size: 32px;
+    margin: 0 0 12px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  .pair-card p { 
+    color: var(--text-dim); 
+    font-size: 14.5px; 
+    font-weight: 300;
+    margin: 0 0 36px; 
+    line-height: 1.6; 
+  }
+
+  .code-plate {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 32px;
+    letter-spacing: 0.22em;
+    font-weight: 500;
+    color: var(--terracotta);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 32px;
+    margin-bottom: 28px;
+    box-shadow: inset 0 2px 4px rgba(42, 38, 33, 0.02);
+  }
+
+  #qr { 
+    background: var(--bg); 
+    border-radius: 12px; 
+    padding: 16px; 
+    display: inline-block; 
+    margin-bottom: 28px; 
+    line-height: 0; 
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 20px -6px rgba(42, 38, 33, 0.05);
+  }
+
+  #qr img {
+    display: block;
+  }
+
+  .pair-actions { 
+    display: flex; 
+    gap: 12px; 
+    justify-content: center; 
+    flex-wrap: wrap; 
+  }
+
+  .join-row { 
+    display: flex; 
+    gap: 10px; 
+    margin-top: 36px; 
+    border-top: 1px solid var(--line);
+    padding-top: 28px;
+  }
+
+  .join-row input {
+    flex: 1; 
+    min-width: 0;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    transition: all 0.3s ease;
+  }
+
+  .join-row input:focus {
+    outline: none;
+    border-color: var(--line-focus);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(184, 172, 155, 0.15);
+  }
+
+  .join-row input::placeholder {
+    color: #9a8f85;
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- buttons ---------- */
+  button {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--panel-raised);
+    color: var(--text);
+    padding: 12px 24px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  button:hover {
+    border-color: var(--line-focus);
+    background: #dfd7ca;
+    transform: translateY(-1px);
+  }
+
+  button:active { 
+    transform: translateY(0); 
+  }
+
+  button.primary {
+    background: var(--terracotta);
+    border-color: var(--terracotta);
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(196, 118, 90, 0.2);
+  }
+
+  button.primary:hover {
+    background: var(--terracotta-hover);
+    border-color: var(--terracotta-hover);
+    box-shadow: 0 6px 20px rgba(196, 118, 90, 0.3);
+  }
+
+  button.ghost { 
+    background: transparent; 
+    border-color: transparent;
+  }
+  
+  button.ghost:hover {
+    background: var(--panel);
+    border-color: var(--line);
+  }
+
+  button.small { 
+    padding: 8px 16px; 
+    font-size: 12px; 
+    border-radius: 4px;
+  }
+
+  /* ---------- composer ---------- */
+  .composer {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 28px -8px rgba(42, 38, 33, 0.04);
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 104px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14.5px;
+    font-weight: 300;
+    padding: 16px;
+    line-height: 1.6;
+    transition: all 0.3s ease;
+  }
+
+  textarea:focus { 
+    outline: none; 
+    border-color: var(--terracotta);
+    background: #fff;
+    box-shadow: 0 0 0 3px var(--terracotta-alpha);
+  }
+
+  textarea::placeholder {
+    color: #9a8f85;
+    font-weight: 300;
+  }
+
+  .composer-foot {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    margin-top: 14px;
+  }
+
+  .composer-foot .hint { 
+    font-size: 11.5px; 
+    color: var(--text-dim); 
+    font-family: var(--mono);
+  }
+
+  .file-btn { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+  }
+
+  /* ---------- history ---------- */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 8px 2px 16px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+  }
+
+  .item {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--terracotta);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(42, 38, 33, 0.02);
+    animation: land 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .item:hover {
+    border-color: var(--line-focus);
+    transform: translateY(-2px);
+  }
+
+  @keyframes land { 
+    from { opacity: 0; transform: translateY(12px); } 
+    to { opacity: 1; transform: none; } 
+  }
+
+  .item-meta {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    font-family: var(--mono); 
+    font-size: 11px; 
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(226, 219, 206, 0.6);
+    padding-bottom: 10px;
+  }
+
+  .item-text {
+    font-size: 14.5px;
+    font-weight: 300;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .item img { 
+    max-width: 100%; 
+    border-radius: 6px; 
+    margin-bottom: 16px; 
+    display: block; 
+    border: 1px solid var(--line);
+  }
+
+  .item-actions { 
+    display: flex; 
+    gap: 8px; 
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-family: var(--serif);
+    font-size: 18px;
+    font-style: italic;
+    padding: 64px 28px;
+    border: 1px dashed var(--line-focus);
+    border-radius: 12px;
+    line-height: 1.6;
+    background: rgba(240, 235, 225, 0.3);
+  }
+
+  .copied-flash { 
+    color: #ffffff !important; 
+    background-color: var(--moss) !important; 
+    border-color: var(--moss) !important; 
+    box-shadow: none !important;
+  }
+
+  .footer-note {
+    text-align: center; 
+    color: var(--text-dim); 
+    font-size: 12px; 
+    font-weight: 300;
+    margin-top: auto; 
+    padding-top: 40px;
+    line-height: 1.6;
+    border-top: 1px solid var(--line);
+  }
+
+  .footer-note a { 
+    color: var(--terracotta); 
+    text-decoration: none; 
+    font-weight: 500;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+  
+  .footer-note a:hover {
+    border-bottom-color: var(--terracotta);
+  }
+
+  /* Organic Washi Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--line-focus);
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 24px 16px 54px; }
+    .pair-card { padding: 36px 20px; }
+    .code-plate { font-size: 26px; letter-spacing: 0.16em; padding: 12px 20px; }
+    .join-row { flex-direction: column; }
+    .join-row button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="jack"></span><b>clipsync</b></div>
+    <div class="presence" id="presence" style="display:none;"><span class="dot"></span><span id="presenceCount"></span></div>
+  </header>
+
+  <div id="pairScreen" class="pair-card">
+    <h1>Patch this device in</h1>
+    <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
+    <div class="code-plate" id="newCode">------</div>
+    <div><div id="qr"></div></div>
+    <div class="pair-actions">
+      <button class="primary" id="startBtn">Use this room</button>
+      <button class="ghost" id="shareBtn">Share link</button>
+    </div>
+    <div class="join-row">
+      <input id="joinInput" maxlength="12" placeholder="OR ENTER EXISTING CODE" />
+      <button id="joinBtn">Join</button>
+    </div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="composer">
+      <textarea id="composer" placeholder="Type, or paste (⌘V / Ctrl+V) here — sends automatically…"></textarea>
+      <div class="composer-foot">
+        <div class="file-btn">
+          <button class="small ghost" id="fileBtn">＋ File / image</button>
+          <input type="file" id="fileInput" style="display:none" />
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="hint" id="sendHint"></span>
+          <button class="small primary" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">
+      <span>Room <span id="roomLabel" style="color:var(--terracotta); font-weight: 600;"></span></span>
+      <span style="cursor:pointer; text-decoration:underline;" id="leaveBtn">leave room</span>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <div class="footer-note">Clipboard writes need a tap on iOS/Safari — that's a browser security rule, not a bug. Everything else syncs the moment it lands. · <a href="#" id="clearBtn">clear room history</a></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const STORAGE_KEY = "clipsync_room";
+
+  function randomCode(len=6){
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
+    let s = "";
+    for(let i=0;i<len;i++) s += alphabet[Math.floor(Math.random()*alphabet.length)];
+    return s;
+  }
+
+  function deviceLabel(){
+    const ua = navigator.userAgent;
+    if(/iPhone/.test(ua)) return "iPhone";
+    if(/iPad/.test(ua)) return "iPad";
+    if(/Android/.test(ua)) return "Android";
+    if(/Win/.test(ua)) return "Windows";
+    if(/Mac/.test(ua)) return "Mac";
+    if(/Linux/.test(ua)) return "Linux";
+    return "device";
+  }
+
+  function roomFromUrl(){
+    const m = location.pathname.match(/\/r\/([A-Z0-9]{4,12})/i);
+    if(m) return m[1].toUpperCase();
+    const q = new URLSearchParams(location.search).get("r");
+    if(q) return q.toUpperCase();
+    return null;
+  }
+
+  const pairScreen = $("pairScreen");
+  const app = $("app");
+  const newCodeEl = $("newCode");
+  let pendingCode = randomCode();
+  newCodeEl.textContent = pendingCode;
+
+  function renderQR(code){
+    $("qr").innerHTML = "";
+    new QRCode($("qr"), {
+      text: location.origin + "/r/" + code,
+      width: 148, height: 148,
+      colorDark: "#2a2621", colorLight: "#f8f5f0"
+    });
+  }
+  renderQR(pendingCode);
+
+  let socket = null;
+  let currentRoom = null;
+
+  function enterRoom(code){
+    code = code.toUpperCase().trim();
+    if(!/^[A-Z0-9]{4,12}$/.test(code)){ alert("Room codes are 4-12 letters/numbers."); return; }
+    currentRoom = code;
+    localStorage.setItem(STORAGE_KEY, code);
+    history.replaceState(null, "", "/r/" + code);
+    pairScreen.style.display = "none";
+    app.style.display = "block";
+    $("roomLabel").textContent = code;
+    connect(code);
+  }
+
+  function connect(code){
+    if(socket) socket.disconnect();
+    socket = io({ transports: ["websocket", "polling"] });
+    socket.on("connect", () => {
+      socket.emit("join", code, (res) => {
+        if(!res || !res.ok){ return; }
+        renderList(res.items || []);
+      });
+    });
+    socket.on("item", (item) => prependItem(item));
+    socket.on("cleared", () => { $("list").innerHTML = ""; renderEmptyIfNeeded(); });
+    socket.on("presence", (count) => {
+      $("presence").style.display = "flex";
+      $("presenceCount").textContent = count + (count === 1 ? " device" : " devices");
+    });
+  }
+
+  // ---------- rendering ----------
+  function fmtTime(ts){
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderEmptyIfNeeded(){
+    const list = $("list");
+    if(!list.children.length){
+      list.innerHTML = '<div class="empty">Nothing sent yet — paste or type above to send it to every device in this room.</div>';
+    }
+  }
+
+  function renderList(items){
+    const list = $("list");
+    list.innerHTML = "";
+    if(!items.length){ renderEmptyIfNeeded(); return; }
+    items.forEach(appendItemEl);
+  }
+
+  function prependItem(item){
+    const list = $("list");
+    const empty = list.querySelector(".empty");
+    if(empty) empty.remove();
+    const el = buildItemEl(item);
+    list.prepend(el);
+  }
+  function appendItemEl(item){
+    $("list").appendChild(buildItemEl(item));
+  }
+
+  function buildItemEl(item){
+    const div = document.createElement("div");
+    div.className = "item";
+    const meta = document.createElement("div");
+    meta.className = "item-meta";
+    meta.innerHTML = `<span>${item.device || "device"} · ${fmtTime(item.ts)}</span>`;
+    div.appendChild(meta);
+
+    if(item.type === "file"){
+      if(item.fileType && item.fileType.startsWith("image/")){
+        const img = document.createElement("img");
+        img.src = item.dataUrl;
+        div.appendChild(img);
+      } else {
+        const p = document.createElement("div");
+        p.className = "item-text";
+        p.textContent = "📎 " + (item.fileName || "file");
+        div.appendChild(p);
+      }
+      const actions = document.createElement("div");
+      actions.className = "item-actions";
+      const dl = document.createElement("a");
+      dl.href = item.dataUrl;
+      dl.download = item.fileName || "file";
+      dl.textContent = "";
+      const btn = document.createElement("button");
+      btn.className = "small";
+      btn.textContent = "Save to device";
+      btn.onclick = () => {
+        const a = document.createElement("a");
+        a.href = item.dataUrl; a.download = item.fileName || "file";
+        document.body.appendChild(a); a.click(); a.remove();
+      };
+      actions.appendChild(btn);
+      div.appendChild(actions);
+    } else {
+      const p = document.createElement("div");
+      p.className = "item-text";
+      p.textContent = item.text || "";
+      div.appendChild(p);
+      const actions = document.createElement("div");
+      actions.className = "item-actions";
+      const btn = document.createElement("button");
+      btn.className = "small primary";
+      btn.textContent = "Copy";
+      btn.onclick = () => copyText(item.text, btn);
+      actions.appendChild(btn);
+      div.appendChild(actions);
+    }
+    return div;
+  }
+
+  async function copyText(text, btn){
+    try{
+      await navigator.clipboard.writeText(text);
+      flash(btn, "Copied ✓");
+    }catch(e){
+      // fallback for older/locked-down browsers
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try{ document.execCommand("copy"); flash(btn, "Copied ✓"); }
+      catch(e2){ flash(btn, "Select & copy manually"); }
+      ta.remove();
+    }
+  }
+  function flash(btn, label){
+    const original = btn.textContent;
+    btn.textContent = label;
+    btn.classList.add("copied-flash");
+    setTimeout(() => { btn.textContent = original; btn.classList.remove("copied-flash"); }, 1400);
+  }
+
+  // ---------- sending ----------
+  function sendText(text){
+    text = (text || "").trim();
+    if(!text || !socket) return;
+    socket.emit("push", { type: "text", text, device: deviceLabel() });
+    $("composer").value = "";
+  }
+
+  function sendFile(file){
+    if(!file) return;
+    if(file.size > 4.5 * 1024 * 1024){ alert("Keep files under ~4.5MB for now."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      socket.emit("push", {
+        type: "file",
+        fileName: file.name,
+        fileType: file.type,
+        dataUrl: reader.result,
+        device: deviceLabel()
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // paste anywhere on the page auto-sends (text or image)
+  document.addEventListener("paste", (e) => {
+    if(app.style.display === "none") return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if(items){
+      for(const it of items){
+        if(it.type.startsWith("image/")){
+          sendFile(it.getAsFile());
+          return;
+        }
+      }
+    }
+    const text = e.clipboardData ? e.clipboardData.getData("text") : "";
+    if(text){
+      e.preventDefault();
+      sendText(text);
+    }
+  });
+
+  $("sendBtn").onclick = () => sendText($("composer").value);
+  $("composer").addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendText($("composer").value);
+  });
+  $("fileBtn").onclick = () => $("fileInput").click();
+  $("fileInput").addEventListener("change", (e) => sendFile(e.target.files[0]));
+
+  $("startBtn").onclick = () => enterRoom(pendingCode);
+  $("joinBtn").onclick = () => enterRoom($("joinInput").value);
+  $("joinInput").addEventListener("keydown", (e) => { if(e.key === "Enter") enterRoom($("joinInput").value); });
+
+  $("shareBtn").onclick = async () => {
+    const url = location.origin + "/r/" + pendingCode;
+    if(navigator.share){
+      try{ await navigator.share({ title: "clipsync room", url }); return; }catch(e){}
+    }
+    copyText(url, $("shareBtn"));
+  };
+
+  $("leaveBtn").onclick = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    location.href = "/";
+  };
+
+  $("clearBtn").onclick = (e) => {
+    e.preventDefault();
+    if(socket && confirm("Clear history for everyone in this room?")) socket.emit("clear");
+  };
+
+  // ---------- boot ----------
+  const urlRoom = roomFromUrl();
+  const savedRoom = localStorage.getItem(STORAGE_KEY);
+  if(urlRoom){
+    enterRoom(urlRoom);
+  } else if(savedRoom){
+    enterRoom(savedRoom);
+  }
+  // else: show pairing screen with pendingCode, waiting for user action
+})();
+</script>
+</body>
+</html>

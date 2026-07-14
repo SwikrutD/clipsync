@@ -1,0 +1,9 @@
+services:
+  clipsync:
+    build: .
+    container_name: clipsync
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
