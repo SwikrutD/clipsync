@@ -1,0 +1,567 @@
+  :root {
+    --bg: #f4f4f2;
+    --sand-light: #eaeae6;
+    --sand-mid: #deded8;
+    --stone-grey: #8c8c88;
+    --stone-light: #b0b0ac;
+    
+    /* Magnetic Ferrofluid & Organic Inks */
+    --iron-black: #141414;
+    --iron-liquid: #000000;
+    --iron-alpha: rgba(20, 20, 20, 0.05);
+    --iron-raised: rgba(20, 20, 20, 0.08);
+    --line: rgba(20, 20, 20, 0.08);
+    --line-focus: rgba(20, 20, 20, 0.3);
+    --ok: #1a7f5a;
+    
+    --text: #141414;
+    --text-dim: #70706c;
+    --text-light: #ffffff;
+    
+    --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    --sans: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  
+  html, body { 
+    height: 100%; 
+    background-color: var(--bg);
+  }
+
+  body {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow-x: hidden;
+    /* Microscopic Zen Sand matrix overlay */
+    background-image: radial-gradient(rgba(20, 20, 20, 0.05) 1.5px, transparent 0);
+    background-size: 20px 20px;
+  }
+
+  /* --- Magnetic Ambient Micro-Blobs (Drifting Fluid Fills) --- */
+  .ferro-universe {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ferro-blob {
+    position: absolute;
+    filter: blur(80px);
+    opacity: 0.12;
+    background: var(--iron-liquid);
+    animation: magneticDrift 28s infinite alternate ease-in-out, organicMorph 20s infinite alternate ease-in-out;
+  }
+
+  .blob-1 {
+    width: 45vw; height: 45vw;
+    max-width: 450px; max-height: 450px;
+    top: -10%; left: -5%;
+  }
+
+  .blob-2 {
+    width: 50vw; height: 50vw;
+    max-width: 500px; max-height: 500px;
+    bottom: -15%; right: -5%;
+    animation-delay: -8s;
+  }
+
+  @keyframes magneticDrift {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    50% { transform: translate(8%, 12%) scale(1.15) rotate(180deg); }
+    100% { transform: translate(-8%, -6%) scale(0.9) rotate(360deg); }
+  }
+
+  @keyframes organicMorph {
+    0% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+    40% { border-radius: 70% 30% 52% 48% / 30% 40% 60% 70%; }
+    70% { border-radius: 50% 50% 65% 35% / 60% 40% 60% 40%; }
+    100% { border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%; }
+  }
+
+  /* --- Layout & Dynamic Inward Swell --- */
+  .wrap {
+    max-width: 620px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes magneticCondense {
+    0% { opacity: 0; transform: translateY(16px) scale(0.97); filter: blur(10px); }
+    60% { filter: blur(0px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    border-radius: 40px 20px 40px 20px;
+    box-shadow: 0 8px 30px rgba(20, 20, 20, 0.02);
+    animation: magneticCondense 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--sans);
+    letter-spacing: -0.04em;
+    text-decoration: none;
+  }
+
+  .brand .jack {
+    width: 14px;
+    height: 14px;
+    background: var(--iron-black);
+    box-shadow: 0 0 0 4px rgba(20, 20, 20, 0.06);
+    animation: organicMorph 6s infinite ease-in-out;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .brand:hover .jack {
+    transform: scale(1.25);
+    background: var(--iron-liquid);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .brand b { 
+    font-weight: 800; 
+    font-size: 21px; 
+    color: var(--iron-black);
+  }
+
+  .presence {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    display: flex; 
+    align-items: center; 
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 6px 16px;
+    border-radius: 30px;
+    border: 1px solid var(--line);
+  }
+
+  .presence .dot { 
+    width: 7px; 
+    height: 7px; 
+    border-radius: 50%; 
+    background: var(--ok); 
+    box-shadow: 0 0 12px var(--ok);
+  }
+
+  /* ---------- Pairing Screen ---------- */
+  .pair-card {
+    background: var(--iron-alpha);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid var(--line);
+    border-radius: 32px 48px 36px 60px;
+    padding: 52px 36px;
+    text-align: center;
+    box-shadow: 0 20px 48px -15px rgba(20, 20, 20, 0.04);
+    animation: magneticCondense 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pair-card h1 {
+    font-size: 28px;
+    margin: 0 0 12px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--iron-black);
+  }
+
+  .pair-card p { 
+    color: var(--text-dim); 
+    font-size: 14.5px; 
+    font-weight: 400;
+    margin: 0 auto 36px; 
+    max-width: 400px;
+    line-height: 1.6; 
+  }
+
+  .code-plate {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 34px;
+    letter-spacing: 0.22em;
+    font-weight: 700;
+    color: var(--iron-black);
+    background: #ffffff;
+    border: 1px solid var(--sand-mid);
+    border-radius: 20px 28px 20px 32px;
+    padding: 16px 36px;
+    margin-bottom: 32px;
+    box-shadow: inset 0 2px 4px rgba(20, 20, 20, 0.02);
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .code-plate:hover {
+    letter-spacing: 0.26em;
+    transform: scale(1.02);
+    border-color: var(--stone-grey);
+  }
+
+  #qr { 
+    background: #ffffff; 
+    padding: 16px; 
+    border-radius: 24px;
+    border: 1px solid var(--sand-mid);
+    display: inline-block; 
+    margin-bottom: 32px; 
+    line-height: 0; 
+    box-shadow: 0 14px 32px -10px rgba(20, 20, 20, 0.08);
+    transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  #qr:hover {
+    transform: scale(1.03);
+  }
+
+  #qr img {
+    display: block;
+    border-radius: 12px;
+  }
+
+  .pair-actions { 
+    display: flex; 
+    gap: 12px; 
+    justify-content: center; 
+    flex-wrap: wrap; 
+  }
+
+  .join-row { 
+    display: flex; 
+    gap: 10px; 
+    margin-top: 36px; 
+    border-top: 1px solid var(--sand-mid);
+    padding-top: 32px;
+  }
+
+  .join-row input {
+    flex: 1; 
+    min-width: 0;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid var(--sand-mid);
+    color: var(--iron-black);
+    border-radius: 40px;
+    padding: 14px 20px;
+    font-size: 13px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .join-row input:focus {
+    outline: none;
+    border-color: var(--iron-black);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.05);
+  }
+
+  .join-row input::placeholder {
+    color: var(--stone-light);
+  }
+
+  /* ---------- Fluid Ferrofluid Pill Buttons ---------- */
+  button {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-radius: 20px 30px 20px 30px;
+    border: 1px solid var(--sand-mid);
+    background: #ffffff;
+    color: var(--iron-black);
+    padding: 13px 26px;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.34, 1.75, 0.64, 1); /* Liquid spring kinetic bounce */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    box-shadow: 0 4px 12px rgba(20, 20, 20, 0.03);
+  }
+
+  button:hover {
+    background: var(--sand-light);
+    border-color: var(--stone-grey);
+    transform: translateY(-3px) scale(1.02);
+    border-radius: 30px 20px 30px 20px;
+    box-shadow: 0 8px 20px rgba(20, 20, 20, 0.06);
+  }
+
+  button:active { 
+    transform: translateY(0) scale(0.96); 
+  }
+
+  button.primary {
+    background: var(--iron-black);
+    border-color: var(--iron-black);
+    color: #ffffff;
+    box-shadow: 0 8px 24px rgba(20, 20, 20, 0.12);
+  }
+
+  button.primary:hover {
+    background: var(--iron-liquid);
+    border-radius: 14px 36px 20px 28px / 28px 16px 32px 18px; /* Organic Ferrofluid Cohesion */
+    transform: scale(1.04) translateY(-3px);
+    box-shadow: 0 12px 32px rgba(20, 20, 20, 0.2);
+  }
+
+  button.primary:active {
+    border-radius: 40px;
+    transform: scale(0.95);
+  }
+
+  button.ghost { 
+    background: transparent; 
+    border-color: transparent;
+    box-shadow: none;
+  }
+  
+  button.ghost:hover {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: var(--sand-mid);
+    border-radius: 14px 36px 20px 28px / 32px 28px 32px 28px;
+    transform: scale(1.04) translateY(-3px);
+    box-shadow: rgba(255, 255, 255, 0.6);
+  }
+
+  button.small { 
+    padding: 8px 18px; 
+    font-size: 12px; 
+    border-radius: 20px 30px;
+  }
+
+  /* ---------- Composer ---------- */
+  .composer {
+    background: var(--iron-alpha);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--line);
+    border-radius: 32px 20px 40px 20px;
+    padding: 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 14px 32px -12px rgba(20, 20, 20, 0.04);
+    animation: magneticCondense 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 102px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--sand-mid);
+    border-radius: 18px;
+    color: var(--iron-black);
+    font-family: var(--sans);
+    font-size: 14.5px;
+    font-weight: 400;
+    padding: 16px;
+    line-height: 1.6;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  textarea:focus { 
+    outline: none; 
+    border-color: var(--iron-black);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.05);
+  }
+
+  textarea::placeholder {
+    color: var(--stone-light);
+  }
+
+  .composer-foot {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    margin-top: 14px;
+  }
+
+  .composer-foot .hint { 
+    font-size: 11.5px; 
+    color: var(--text-dim); 
+    font-family: var(--mono);
+  }
+
+  .file-btn { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+  }
+
+  /* ---------- History List ---------- */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--stone-grey);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 8px 6px 16px;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+  }
+
+  .item {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--iron-black);
+    border-radius: 24px 36px 24px 36px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 20px -6px rgba(20, 20, 20, 0.03);
+    animation: liquidGrowth 0.5s cubic-bezier(0.34, 1.75, 0.64, 1);
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .item:hover {
+    border-color: var(--stone-grey);
+    transform: translateY(-3px) scale(1.008);
+    border-radius: 36px 24px 36px 24px;
+    box-shadow: 0 12px 28px -8px rgba(20, 20, 20, 0.06);
+  }
+
+  @keyframes liquidGrowth { 
+    from { opacity: 0; transform: translateY(20px) scale(0.95); filter: blur(4px); } 
+    to { opacity: 1; transform: none; filter: blur(0); } 
+  }
+
+  .item-meta {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    font-family: var(--mono); 
+    font-size: 11px; 
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--sand-light);
+    padding-bottom: 10px;
+  }
+
+  .item-text {
+    font-size: 14.5px;
+    font-weight: 400;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+    margin-bottom: 16px;
+    color: var(--iron-black);
+  }
+
+  .item img { 
+    max-width: 100%; 
+    border-radius: 14px; 
+    margin-bottom: 16px; 
+    display: block; 
+    border: 1px solid var(--sand-mid);
+  }
+
+  .item-actions { 
+    display: flex; 
+    gap: 8px; 
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    font-weight: 400;
+    padding: 64px 28px;
+    border: 1px dashed var(--stone-light);
+    border-radius: 24px;
+    line-height: 1.6;
+    background: var(--iron-alpha);
+    animation: magneticCondense 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .copied-flash { 
+    background-color: var(--iron-black) !important; 
+    color: #ffffff !important;
+    border-color: var(--iron-black) !important;
+    transform: scale(1.04) !important;
+    border-radius: 14px 30px 16px 24px !important;
+  }
+
+  .footer-note {
+    text-align: center; 
+    color: var(--text-dim); 
+    font-size: 12px; 
+    font-weight: 400;
+    margin-top: auto; 
+    padding-top: 36px;
+    line-height: 1.6;
+    border-top: 1px solid var(--sand-mid);
+  }
+
+  .footer-note a { 
+    color: var(--iron-black); 
+    text-decoration: none; 
+    font-weight: 700;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+  
+  .footer-note a:hover {
+    border-bottom-color: var(--iron-black);
+  }
+
+  /* Micro Scrollbars */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--sand-mid);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--stone-grey);
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 20px 14px 60px; }
+    .pair-card { padding: 36px 20px; border-radius: 24px; }
+    .code-plate { font-size: 26px; letter-spacing: 0.16em; padding: 14px 20px; }
+    .join-row { flex-direction: column; }
+    .join-row button { width: 100%; }
+  }
