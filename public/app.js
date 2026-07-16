@@ -1,6 +1,7 @@
 (function(){
   const $ = (id) => document.getElementById(id);
   const STORAGE_KEY = "clipsync_room";
+  const THEME_KEY = "clipsync_theme";
 
   function randomCode(len=6){
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
@@ -27,6 +28,21 @@
     if(q) return q.toUpperCase();
     return null;
   }
+
+  // ---------- theme ----------
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    const btn = $("themeToggle");
+    if(btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+    localStorage.setItem(THEME_KEY, theme);
+  }
+  const initialTheme = localStorage.getItem(THEME_KEY)
+    || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  applyTheme(initialTheme);
+  $("themeToggle").onclick = () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    applyTheme(current === "dark" ? "light" : "dark");
+  };
 
   const pairScreen = $("pairScreen");
   const app = $("app");

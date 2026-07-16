@@ -565,3 +565,92 @@
     .join-row { flex-direction: column; }
     .join-row button { width: 100%; }
   }
+
+  /* ---------- Icon buttons (theme toggle, notification bell) ---------- */
+  .icon-btn {
+    padding: 8px 10px;
+    font-size: 15px;
+    line-height: 1;
+    border-radius: 50%;
+  }
+  .icon-btn:hover {
+    border-radius: 50%;
+  }
+
+  /* ---------- Dark theme ----------
+     Same organic/ferrofluid shapes and motion, inverted palette: the
+     "iron" ink becomes light-on-dark instead of dark-on-light. */
+  :root[data-theme="dark"] {
+    --bg: #121212;
+    --sand-light: #1c1c1a;
+    --sand-mid: #2a2a27;
+    --stone-grey: #96968f;
+    --stone-light: #5c5c57;
+
+    --iron-black: #f2f2ee;
+    --iron-liquid: #ffffff;
+    --iron-alpha: rgba(242, 242, 238, 0.05);
+    --iron-raised: rgba(242, 242, 238, 0.09);
+    --line: rgba(242, 242, 238, 0.1);
+    --line-focus: rgba(242, 242, 238, 0.32);
+    --ok: #4ade80;
+
+    --text: #f2f2ee;
+    --text-dim: #9c9c96;
+    --text-light: #141414;
+  }
+
+  :root[data-theme="dark"] body {
+    background-image: radial-gradient(rgba(242, 242, 238, 0.05) 1.5px, transparent 0);
+  }
+
+  :root[data-theme="dark"] .ferro-blob {
+    background: var(--iron-liquid);
+    opacity: 0.05;
+  }
+
+  :root[data-theme="dark"] header {
+    background: rgba(20, 20, 20, 0.5);
+  }
+
+  :root[data-theme="dark"] .presence {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  :root[data-theme="dark"] .code-plate,
+  :root[data-theme="dark"] #qr,
+  :root[data-theme="dark"] button {
+    background: #1a1a1a;
+  }
+
+  :root[data-theme="dark"] textarea,
+  :root[data-theme="dark"] .join-row input {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  :root[data-theme="dark"] textarea:focus,
+  :root[data-theme="dark"] .join-row input:focus {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  :root[data-theme="dark"] button.primary {
+    background: var(--iron-black);
+    color: #141414;
+  }
+
+  :root[data-theme="dark"] button.primary:hover {
+    background: var(--iron-liquid);
+  }
+
+  :root[data-theme="dark"] .copied-flash {
+    background-color: var(--iron-black) !important;
+    color: #141414 !important;
+  }
+
+  :root[data-theme="dark"] .item {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  :root[data-theme="dark"] #roomLabel {
+    background: rgba(255, 255, 255, 0.06) !important;
+  }

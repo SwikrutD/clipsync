@@ -19,11 +19,14 @@
 <div class="wrap">
   <header>
     <div class="brand"><span class="jack"></span><b>clipsync</b></div>
-    <div class="presence" id="presence" style="display:none;"><span class="dot"></span><span id="presenceCount"></span></div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="presence" id="presence" style="display:none;"><span class="dot"></span><span id="presenceCount"></span></div>
+      <button class="ghost small icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+    </div>
   </header>
 
   <div id="pairScreen" class="pair-card">
-    <h1>Patch this device in</h1>
+    <h1>Join with this device</h1>
     <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
     <div class="code-plate" id="newCode">------</div>
     <div><div id="qr"></div></div>
@@ -60,7 +63,7 @@
     <div id="list"></div>
   </div>
 
-  <div class="footer-note">Clipboard writes need a tap on iOS/Safari — that's a browser security rule, not a bug. Everything else syncs the moment it lands. · <a href="#" id="clearBtn">clear room history</a></div>
+  <div class="footer-note">Clipboard writes need a tap on iOS/Safari — that's a browser security rule, not a bug. Everything else syncs the moment it is pasted. · <a href="#" id="clearBtn">clear room history</a></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
