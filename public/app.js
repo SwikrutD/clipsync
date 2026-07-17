@@ -248,6 +248,38 @@
   $("fileBtn").onclick = () => $("fileInput").click();
   $("fileInput").addEventListener("change", (e) => sendFile(e.target.files[0]));
 
+  // "Send my clipboard" - a single tap, no need to focus/paste into the textarea.
+  // Tries an image first (where supported), falls back to text.
+  $("sendClipboardBtn").onclick = async () => {
+    const btn = $("sendClipboardBtn");
+    try{
+      if(navigator.clipboard.read){
+        try{
+          const items = await navigator.clipboard.read();
+          for(const item of items){
+            for(const type of item.types){
+              if(type.startsWith("image/")){
+                const blob = await item.getType(type);
+                sendFile(new File([blob], "clipboard-image.png", { type }));
+                flash(btn, "Sent ✓");
+                return;
+              }
+            }
+          }
+        }catch(imgErr){ /* fall through to text */ }
+      }
+      const text = await navigator.clipboard.readText();
+      if(text){
+        sendText(text);
+        flash(btn, "Sent ✓");
+      }else{
+        alert("Clipboard is empty.");
+      }
+    }catch(e){
+      alert("Couldn't read your clipboard — your browser may need permission, or there's nothing copied yet. You can still paste directly into the box above.");
+    }
+  };
+
   $("startBtn").onclick = () => enterRoom(pendingCode);
   $("joinBtn").onclick = () => enterRoom($("joinInput").value);
   $("joinInput").addEventListener("keydown", (e) => { if(e.key === "Enter") enterRoom($("joinInput").value); });

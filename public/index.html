@@ -26,7 +26,7 @@
   </header>
 
   <div id="pairScreen" class="pair-card">
-    <h1>Join with this device</h1>
+    <h1>Join this device in</h1>
     <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
     <div class="code-plate" id="newCode">------</div>
     <div><div id="qr"></div></div>
@@ -45,6 +45,7 @@
       <textarea id="composer" placeholder="Type, or paste (⌘V / Ctrl+V) here — sends automatically…"></textarea>
       <div class="composer-foot">
         <div class="file-btn">
+          <button class="small ghost" id="sendClipboardBtn">📋 Send clipboard</button>
           <button class="small ghost" id="fileBtn">＋ File / image</button>
           <input type="file" id="fileInput" style="display:none" />
         </div>
