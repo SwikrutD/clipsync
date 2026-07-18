@@ -33,7 +33,7 @@
   function applyTheme(theme){
     document.documentElement.setAttribute("data-theme", theme);
     const btn = $("themeToggle");
-    if(btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+    if(btn) btn.textContent = theme === "dark" ? "☀" : "🌙";
     localStorage.setItem(THEME_KEY, theme);
   }
   const initialTheme = localStorage.getItem(THEME_KEY)
@@ -124,7 +124,6 @@
     app.style.display = "block";
     $("roomLabel").textContent = code;
     connect(code);
-    setupPush();
   }
 
   function connect(code){
@@ -207,6 +206,10 @@
       }
       const actions = document.createElement("div");
       actions.className = "item-actions";
+      const dl = document.createElement("a");
+      dl.href = item.dataUrl;
+      dl.download = item.fileName || "file";
+      dl.textContent = "";
       const btn = document.createElement("button");
       btn.className = "small";
       btn.textContent = "Save to device";
@@ -239,6 +242,7 @@
       await navigator.clipboard.writeText(text);
       flash(btn, "Copied ✓");
     }catch(e){
+      // fallback for older/locked-down browsers
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed"; ta.style.opacity = "0";
@@ -307,40 +311,26 @@
   $("fileInput").addEventListener("change", (e) => sendFile(e.target.files[0]));
 
   // "Send my clipboard" - a single tap, no need to focus/paste into the textarea.
-  // Deliberately makes exactly ONE clipboard API call so the browser's native
-  // permission popup fires once, not twice (calling read() then readText()
-  // back to back can suppress or duplicate that prompt in some browsers).
+  // Tries an image first (where supported), falls back to text.
   $("sendClipboardBtn").onclick = async () => {
     const btn = $("sendClipboardBtn");
     try{
       if(navigator.clipboard.read){
-        const items = await navigator.clipboard.read(); // <- triggers the permission popup here
-        for(const item of items){
-          for(const type of item.types){
-            if(type.startsWith("image/")){
-              const blob = await item.getType(type);
-              sendFile(new File([blob], "clipboard-image.png", { type }));
-              flash(btn, "Sent ✓");
-              return;
+        try{
+          const items = await navigator.clipboard.read();
+          for(const item of items){
+            for(const type of item.types){
+              if(type.startsWith("image/")){
+                const blob = await item.getType(type);
+                sendFile(new File([blob], "clipboard-image.png", { type }));
+                flash(btn, "Sent ✓");
+                return;
+              }
             }
           }
-        }
-        for(const item of items){
-          if(item.types.includes("text/plain")){
-            const blob = await item.getType("text/plain");
-            const text = (await blob.text()).trim();
-            if(text){
-              await sendText(text);
-              flash(btn, "Sent ✓");
-              return;
-            }
-          }
-        }
-        alert("Clipboard is empty.");
-        return;
+        }catch(imgErr){ /* fall through to text */ }
       }
-      // Safari/older browsers without clipboard.read() support
-      const text = await navigator.clipboard.readText(); // <- triggers the permission popup here instead
+      const text = await navigator.clipboard.readText();
       if(text){
         await sendText(text);
         flash(btn, "Sent ✓");
@@ -348,11 +338,7 @@
         alert("Clipboard is empty.");
       }
     }catch(e){
-      if(e.name === "NotAllowedError"){
-        alert("Clipboard access was blocked. Check the site permissions icon next to the address bar (usually a lock or 🔒/ⓘ icon), allow clipboard access for this site, then tap the button again.");
-      }else{
-        alert("Couldn't read your clipboard — there may be nothing copied yet. You can still paste directly into the box above.");
-      }
+      alert("Couldn't read your clipboard — your browser may need permission, or there's nothing copied yet. You can still paste directly into the box above.");
     }
   };
 
@@ -377,81 +363,6 @@
     e.preventDefault();
     if(socket && confirm("Clear history for everyone in this room?")) socket.emit("clear");
   };
-
-  // ---------- PWA + push notifications ----------
-  let swRegistration = null;
-
-  async function registerServiceWorker(){
-    if(!("serviceWorker" in navigator)) return null;
-    try{
-      swRegistration = await navigator.serviceWorker.register("/sw.js");
-      return swRegistration;
-    }catch(e){
-      console.error("Service worker registration failed:", e);
-      return null;
-    }
-  }
-
-  function urlBase64ToUint8Array(base64String){
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = atob(base64);
-    const output = new Uint8Array(rawData.length);
-    for(let i=0;i<rawData.length;i++) output[i] = rawData.charCodeAt(i);
-    return output;
-  }
-
-  async function setupPush(){
-    if(!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    const reg = swRegistration || await registerServiceWorker();
-    if(!reg) return;
-
-    const existing = await reg.pushManager.getSubscription();
-    const btn = $("notifyBtn");
-    btn.style.display = "inline-flex";
-
-    if(existing){
-      btn.textContent = "🔔";
-      btn.title = "Notifications on for this room";
-      btn.onclick = async () => {
-        await existing.unsubscribe();
-        if(socket) socket.emit("unsubscribe", existing.endpoint);
-        btn.textContent = "🔕";
-        btn.title = "Enable notifications";
-        setupPush();
-      };
-      // make sure the server still has this subscription (e.g. after a fresh join)
-      if(socket) socket.emit("subscribe", existing.toJSON ? existing.toJSON() : existing);
-      return;
-    }
-
-    btn.textContent = "🔕";
-    btn.title = "Enable notifications";
-    btn.onclick = async () => {
-      try{
-        const perm = await Notification.requestPermission();
-        if(perm !== "granted"){
-          alert("Notifications weren't allowed. On iPhone: add this page to your Home Screen first, then open it from there before enabling notifications.");
-          return;
-        }
-        const res = await fetch("/vapid-public-key");
-        const { publicKey } = await res.json();
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey)
-        });
-        if(socket) socket.emit("subscribe", sub.toJSON ? sub.toJSON() : sub);
-        btn.textContent = "🔔";
-        btn.title = "Notifications on for this room";
-        setupPush();
-      }catch(e){
-        console.error("Push subscribe failed:", e);
-        alert("Couldn't enable notifications on this device/browser.");
-      }
-    };
-  }
-
-  registerServiceWorker();
 
   // ---------- boot ----------
   const urlRoom = roomFromUrl();

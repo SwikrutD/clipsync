@@ -26,7 +26,7 @@
   </header>
 
   <div id="pairScreen" class="pair-card">
-    <h1>Join this device in</h1>
+    <h1>Patch this device in</h1>
     <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
     <div class="code-plate" id="newCode">------</div>
     <div><div id="qr"></div></div>
@@ -64,7 +64,7 @@
     <div id="list"></div>
   </div>
 
-  <div class="footer-note">Clipboard writes need a tap on iOS/Safari — that's a browser security rule, not a bug. Everything else syncs the moment it is pasted. · <a href="#" id="clearBtn">clear room history</a></div>
+  <div class="footer-note">Everything is encrypted with a key derived from your room code before it leaves this device — the server only ever stores ciphertext. Clipboard writes need a tap on iOS/Safari, that's a browser security rule, not a bug. · <a href="#" id="clearBtn">clear room history</a></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>

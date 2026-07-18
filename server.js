@@ -7,13 +7,17 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  maxHttpBufferSize: 8 * 1024 * 1024 // 8MB, room for small images/files
+  // encrypted payloads are base64(iv + AES-GCM ciphertext) wrapping an
+  // already-base64 dataURL for files, so there's real overhead here -
+  // 12MB gives headroom for the ~4.5MB file cap after that expansion
+  maxHttpBufferSize: 12 * 1024 * 1024
 });
 
 const PORT = process.env.PORT || 4173;
 const DATA_FILE = path.join(__dirname, "data", "rooms.json");
 const MAX_ITEMS_PER_ROOM = 30;
 const ROOM_TTL_MS = 1000 * 60 * 60 * 24 * 14; // rooms idle 14 days get pruned
+const MAX_ENC_LEN = 10 * 1024 * 1024; // guard against abuse independent of the socket.io frame cap
 
 // --- persistence -----------------------------------------------------
 let rooms = {}; // { code: { items: [...], lastActive } }
@@ -90,14 +94,14 @@ io.on("connection", (socket) => {
 
   socket.on("push", (payload) => {
     if (!joinedRoom || !payload || typeof payload !== "object") return;
+    // enc is a base64 blob of AES-GCM(iv + ciphertext) produced client-side from a key
+    // derived from the room code. The server never sees plaintext text/filenames/file data.
+    if (typeof payload.enc !== "string" || !payload.enc.length || payload.enc.length > MAX_ENC_LEN) return;
     const room = getRoom(joinedRoom);
     const item = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type: payload.type === "file" ? "file" : "text",
-      text: typeof payload.text === "string" ? payload.text.slice(0, 200000) : undefined,
-      fileName: payload.fileName ? String(payload.fileName).slice(0, 200) : undefined,
-      fileType: payload.fileType ? String(payload.fileType).slice(0, 100) : undefined,
-      dataUrl: payload.dataUrl ? String(payload.dataUrl).slice(0, 8 * 1024 * 1024) : undefined,
+      enc: payload.enc,
       device: payload.device ? String(payload.device).slice(0, 40) : "device",
       ts: Date.now()
     };
