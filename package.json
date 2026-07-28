@@ -4,10 +4,15 @@
   "description": "Cross-device clipboard sync over the browser - no app install required",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "vendor": "node scripts/vendor.js",
+    "postinstall": "node scripts/vendor.js"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/outfit": "^5.3.0",
     "express": "^4.19.2",
+    "qrcode-generator": "^2.0.4",
     "socket.io": "^4.7.5"
   }
 }

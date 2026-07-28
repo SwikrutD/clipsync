@@ -67,6 +67,36 @@ function getRoom(code) {
      return rooms[code];
    }
 
+// --- security headers -------------------------------------------------
+// Everything the page loads now comes from this origin (see scripts/vendor.js),
+// so script-src can be locked to 'self' with no CDN escape hatch. 'unsafe-inline'
+// stays on style-src only because the markup still uses inline style attributes.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self' ws: wss:",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "object-src 'none'"
+].join("; ");
+
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", CSP);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=(), interest-cohort=()");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
+
 // --- static + basic routes -------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -107,8 +137,10 @@ io.on("connection", (socket) => {
 
   socket.on("push", (payload) => {
     if (!joinedRoom || !payload || typeof payload !== "object") return;
-    // enc is a base64 blob of AES-GCM(iv + ciphertext) produced client-side from a key
-    // derived from the room code. The server never sees plaintext text/filenames/file data.
+    // enc is a base64 blob of AES-GCM(iv + ciphertext). The key is derived
+    // client-side via HKDF from a 256-bit secret that lives in the room link's
+    // URL fragment - browsers never transmit a fragment, so that secret never
+    // reaches this process and the server genuinely cannot decrypt any of this.
     if (typeof payload.enc !== "string" || !payload.enc.length || payload.enc.length > MAX_ENC_LEN) return;
     const room = getRoom(joinedRoom);
     const item = {

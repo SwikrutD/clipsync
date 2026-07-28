@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="referrer" content="no-referrer" />
 <title>clipsync</title>
 <link rel="icon" href="data:," />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/vendor/fonts.css" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-<div class="ferro-universe">
+<div class="ferro-universe" aria-hidden="true">
   <div class="ferro-blob blob-1"></div>
   <div class="ferro-blob blob-2"></div>
 </div>
@@ -20,55 +19,68 @@
   <header>
     <div class="brand"><span class="jack"></span><b>clipsync</b></div>
     <div style="display:flex; align-items:center; gap:8px;">
-      <div class="presence" id="presence" style="display:none;"><span class="dot"></span><span id="presenceCount"></span></div>
-      <button class="ghost small icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+      <div class="presence" id="presence" hidden><span class="dot"></span><span id="presenceCount"></span></div>
+      <button type="button" class="ghost small icon-btn" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
     </div>
   </header>
+
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
 
   <div id="pairScreen" class="pair-card">
     <h1>Patch this device in</h1>
     <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
     <div class="code-plate" id="newCode">------</div>
     <div><div id="qr"></div></div>
+    <p class="pair-hint">Scan the code with your other device, or tap <b>Share link</b> to send it over.</p>
     <div class="pair-actions">
-      <button class="primary" id="startBtn">Use this room</button>
-      <button class="ghost" id="shareBtn">Share link</button>
+      <button type="button" class="primary" id="startBtn">Use this room</button>
+      <button type="button" class="ghost" id="shareBtn">Share link</button>
     </div>
     <div class="join-row">
-      <input id="joinInput" maxlength="12" placeholder="OR ENTER EXISTING CODE" />
-      <button id="joinBtn">Join</button>
+      <label class="sr-only" for="joinInput">Paste a room link</label>
+      <input id="joinInput" placeholder="OR PASTE A ROOM LINK" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <button type="button" id="joinBtn">Join</button>
     </div>
   </div>
 
-  <div id="app" style="display:none;">
+  <div id="app" hidden>
     <div class="composer">
+      <label class="sr-only" for="composer">Text to send</label>
       <textarea id="composer" placeholder="Type, or paste (⌘V / Ctrl+V) here — sends automatically…"></textarea>
       <div class="composer-foot">
         <div class="file-btn">
-          <button class="small ghost" id="sendClipboardBtn">📋 Send clipboard</button>
-          <button class="small ghost" id="fileBtn">＋ File / image</button>
-          <input type="file" id="fileInput" style="display:none" />
+          <button type="button" class="small ghost" id="sendClipboardBtn">📋 Send clipboard</button>
+          <button type="button" class="small ghost" id="fileBtn">＋ File / image</button>
+          <input type="file" id="fileInput" style="display:none" aria-hidden="true" tabindex="-1" />
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <span class="hint" id="sendHint"></span>
-          <button class="small primary" id="sendBtn">Send</button>
+          <button type="button" class="small primary" id="sendBtn">Send</button>
         </div>
       </div>
     </div>
 
     <div class="section-label">
-      <span>Room <span id="roomLabel" style="color:var(--iron-black); font-weight:800; background:rgba(255,255,255,0.8); padding:2px 10px; border-radius:30px; border:1px solid var(--sand-mid);"></span></span>
-      <span style="cursor:pointer; text-decoration:underline; color:var(--stone-grey);" id="leaveBtn">leave room</span>
+      <span>Room <span id="roomLabel" class="room-chip"></span></span>
+      <button type="button" class="linkish" id="leaveBtn">leave room</button>
     </div>
 
     <div id="list"></div>
   </div>
 
-  <div class="footer-note">Everything is encrypted with a key derived from your room code before it leaves this device — the server only ever stores ciphertext. Clipboard writes need a tap on iOS/Safari, that's a browser security rule, not a bug. · <a href="#" id="clearBtn">clear room history</a></div>
+  <div class="footer-note">
+    <p>Anything you send here shows up on every device in this room, encrypted so only your devices can read it. Keep your room link private — anyone who has it can see what's inside.</p>
+    <p><button type="button" class="linkish" id="clearBtn">clear room history</button></p>
+    <div id="clearConfirm" class="confirm-row" role="group" aria-label="Confirm clearing room history" hidden>
+      <span>Clear history for everyone in this room?</span>
+      <button type="button" class="small primary" id="clearYes">Clear</button>
+      <button type="button" class="small ghost" id="clearNo">Cancel</button>
+    </div>
+  </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/vendor/qrcode.js"></script>
+<script src="/vendor/socket.io.min.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

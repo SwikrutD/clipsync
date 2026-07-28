@@ -24,8 +24,11 @@
 
   * { box-sizing: border-box; }
   
-  html, body { 
-    height: 100%; 
+  /* min-height, not height: a fixed 100% capped the document at the viewport,
+     which stranded the pairing CTA and join field below the fold on short
+     laptop windows with no way to scroll to them. */
+  html, body {
+    min-height: 100%;
     background-color: var(--bg);
   }
 
@@ -654,3 +657,139 @@
   :root[data-theme="dark"] #roomLabel {
     background: rgba(255, 255, 255, 0.06) !important;
   }
+  /* ---------- added: notices, inline confirm, a11y helpers ---------- */
+
+  /* Screen-reader-only label text. */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Replaces alert(): non-blocking, announced to screen readers. */
+  .notice {
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid var(--sand-mid);
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--text);
+  }
+  .notice[data-tone="error"] {
+    border-color: #d98b6a;
+    background: rgba(217, 139, 106, 0.12);
+  }
+  :root[data-theme="dark"] .notice {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  :root[data-theme="dark"] .notice[data-tone="error"] {
+    background: rgba(217, 139, 106, 0.18);
+    border-color: rgba(217, 139, 106, 0.5);
+  }
+
+  /* Buttons that should read as inline text links, but stay real buttons so
+     they are keyboard reachable and announced correctly. */
+  .linkish {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: var(--stone-grey);
+    text-decoration: underline;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .linkish:hover { color: var(--iron-black); }
+  .footer-note .linkish {
+    color: var(--iron-black);
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .footer-note .linkish:hover { border-bottom-color: var(--iron-black); }
+  :root[data-theme="dark"] .footer-note .linkish { color: var(--text); }
+  :root[data-theme="dark"] .footer-note .linkish:hover { border-bottom-color: var(--text); }
+
+  .room-chip {
+    color: var(--iron-black);
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 2px 10px;
+    border-radius: 30px;
+    border: 1px solid var(--sand-mid);
+  }
+
+  /* Replaces confirm(). */
+  .confirm-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--sand-mid);
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--text);
+  }
+  :root[data-theme="dark"] .confirm-row {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .pair-hint {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 420px;
+    margin: 14px auto 0;
+  }
+  .pair-hint code {
+    font-family: var(--mono, "JetBrains Mono", monospace);
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  :root[data-theme="dark"] .pair-hint code { background: rgba(255, 255, 255, 0.1); }
+
+  #qr svg { display: block; }
+
+  /* Visible focus for keyboard users. */
+  :focus-visible {
+    outline: 2px solid var(--iron-black);
+    outline-offset: 2px;
+  }
+  :root[data-theme="dark"] :focus-visible { outline-color: var(--text); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* The join field now accepts a full room link, and the key in the fragment
+     is case-sensitive base64url - so no uppercasing or letter-spacing here. */
+  .join-row input {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 12px;
+  }
+  .join-row input::placeholder {
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* The hidden attribute is only a UA-stylesheet `display:none`, so any author
+     rule that sets display (.presence and .confirm-row both use flex) silently
+     beats it. This makes `hidden` actually mean hidden. */
+  [hidden] { display: none !important; }
