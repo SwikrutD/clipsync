@@ -31,14 +31,14 @@
     <p>Open the same room on every device. Anything sent here shows up on all of them, instantly.</p>
     <div class="code-plate" id="newCode">------</div>
     <div><div id="qr"></div></div>
-    <p class="pair-hint">Scan the code with your other device, or tap <b>Share link</b> to send it over.</p>
+    <p class="pair-hint">Type this code on your other device, scan the square, or tap <b>Share link</b>.</p>
     <div class="pair-actions">
       <button type="button" class="primary" id="startBtn">Use this room</button>
       <button type="button" class="ghost" id="shareBtn">Share link</button>
     </div>
     <div class="join-row">
-      <label class="sr-only" for="joinInput">Paste a room link</label>
-      <input id="joinInput" placeholder="OR PASTE A ROOM LINK" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <label class="sr-only" for="joinInput">Enter an existing room code</label>
+      <input id="joinInput" maxlength="12" placeholder="OR ENTER EXISTING CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" />
       <button type="button" id="joinBtn">Join</button>
     </div>
   </div>
@@ -69,7 +69,7 @@
   </div>
 
   <div class="footer-note">
-    <p>Anything you send here shows up on every device in this room, encrypted so only your devices can read it. Keep your room link private — anyone who has it can see what's inside.</p>
+    <p>Anything you send here shows up on every device in this room, and stays until you clear it. Keep your room code private — anyone who has it can see what's inside.</p>
     <p><button type="button" class="linkish" id="clearBtn">clear room history</button></p>
     <div id="clearConfirm" class="confirm-row" role="group" aria-label="Confirm clearing room history" hidden>
       <span>Clear history for everyone in this room?</span>

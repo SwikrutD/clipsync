@@ -1,8 +1,7 @@
 (function(){
   const $ = (id) => document.getElementById(id);
-  const STORAGE_KEY = "clipsync_room";   // { code, k } for the last room used
+  const STORAGE_KEY = "clipsync_room";   // the last room code used
   const THEME_KEY = "clipsync_theme";
-  const LEGACY_STORAGE_KEY = "clipsync_room_legacy_code";
 
   function randomCode(len=6){
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
@@ -36,51 +35,26 @@
     for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
     return bytes;
   }
-  const b64uEncode = (buf) => bufToB64(buf).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  const b64uDecode = (s) => {
-    let t = s.replace(/-/g,"+").replace(/_/g,"/");
-    while(t.length % 4) t += "=";
-    return b64ToBytes(t);
-  };
-
-  // ---------- room identity (code + secret) ----------
-  // The room code is only an address: the server needs it to route messages,
-  // so it is deliberately NOT secret. The actual key material is a 256-bit
-  // random secret carried in the URL *fragment*, which browsers never put on
-  // the wire. The server therefore cannot derive the key even in principle -
-  // it has no path to the secret at all.
-  const SECRET_BYTES = 32;
-
-  function newSecret(){
-    return b64uEncode(crypto.getRandomValues(new Uint8Array(SECRET_BYTES)).buffer);
+  // ---------- room identity ----------
+  // The room code is the whole secret and also the routing address, so the
+  // server necessarily receives it. Accepts a bare code or a full room link,
+  // so pasting either into the join box works.
+  function roomUrl(code){
+    return location.origin + "/r/" + code;
   }
 
-  function roomUrl(code, secret){
-    return location.origin + "/r/" + code + "#k=" + secret;
-  }
-
-  function parseRoomUrl(input){
+  function parseRoomCode(input){
     const text = (input || "").trim();
     if(!text) return null;
-    let code = null, secret = null;
+    if(/^[A-Z0-9]{4,12}$/i.test(text)) return text.toUpperCase();
     try{
       const u = new URL(text, location.origin);
       const m = u.pathname.match(/\/r\/([A-Z0-9]{4,12})/i);
-      if(m) code = m[1].toUpperCase();
-      const frag = new URLSearchParams((u.hash || "").replace(/^#/, ""));
-      if(frag.get("k")) secret = frag.get("k");
+      if(m) return m[1].toUpperCase();
       const q = u.searchParams.get("r");
-      if(!code && q) code = q.toUpperCase();
-    }catch(e){ /* not a URL - fall through */ }
-    if(!code && /^[A-Z0-9]{4,12}$/i.test(text)) code = text.toUpperCase();
-    if(!code) return null;
-    return { code, secret };
-  }
-
-  function roomFromLocation(){
-    const parsed = parseRoomUrl(location.href);
-    if(!parsed || !parsed.code) return null;
-    return parsed;
+      if(q && /^[A-Z0-9]{4,12}$/i.test(q)) return q.toUpperCase();
+    }catch(e){ /* not a URL */ }
+    return null;
   }
 
   // ---------- theme ----------
@@ -123,27 +97,28 @@
   }
 
   // ---------- crypto ----------
-  // The secret is already 256 bits of CSPRNG output, so there is nothing to
-  // brute-force and no reason to pay for PBKDF2 stretching. HKDF is the right
-  // primitive for deriving a key from high-entropy material; the room code
-  // goes in as the salt so two rooms sharing a secret still get distinct keys.
+  // The key comes from the room code alone. That means the server, which
+  // receives the code in order to route messages, can derive this key too -
+  // this is encryption against network snooping and casual disk access, not
+  // against the server operator. PBKDF2 is still worth its cost: it takes
+  // offline grinding of stolen ciphertext from instant to expensive.
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
+  const PBKDF2_ITERATIONS = 250000;
   let keyPromise = null;
   let keyPromiseFor = null;
 
-  function getKey(room){
-    const tag = room.code + ":" + room.secret;
-    if(keyPromise && keyPromiseFor === tag) return keyPromise;
-    keyPromiseFor = tag;
+  function getKey(code){
+    if(keyPromise && keyPromiseFor === code) return keyPromise;
+    keyPromiseFor = code;
     keyPromise = crypto.subtle
-      .importKey("raw", b64uDecode(room.secret), "HKDF", false, ["deriveKey"])
+      .importKey("raw", textEncoder.encode(code), "PBKDF2", false, ["deriveKey"])
       .then((base) => crypto.subtle.deriveKey(
         {
-          name: "HKDF",
-          hash: "SHA-256",
-          salt: textEncoder.encode("clipsync:v1:" + room.code),
-          info: textEncoder.encode("clipsync-v1-aes-gcm")
+          name: "PBKDF2",
+          salt: textEncoder.encode("clipsync:v2:" + code),
+          iterations: PBKDF2_ITERATIONS,
+          hash: "SHA-256"
         },
         base,
         { name: "AES-GCM", length: 256 },
@@ -175,8 +150,8 @@
 
   const pairScreen = $("pairScreen");
   const app = $("app");
-  let pending = { code: randomCode(), secret: newSecret() };
-  $("newCode").textContent = pending.code;
+  let pendingCode = randomCode();
+  $("newCode").textContent = pendingCode;
 
   function renderQR(url){
     const host = $("qr");
@@ -190,30 +165,24 @@
       svg.setAttribute("width", "148");
       svg.setAttribute("height", "148");
       svg.setAttribute("role", "img");
-      svg.setAttribute("aria-label", "QR code linking to room " + pending.code);
+      svg.setAttribute("aria-label", "QR code linking to room " + pendingCode);
     }
   }
-  renderQR(roomUrl(pending.code, pending.secret));
+  renderQR(roomUrl(pendingCode));
 
   let socket = null;
-  let currentRoom = null; // { code, secret }
+  let currentRoom = null; // the room code
 
-  function enterRoom(code, secret){
+  function enterRoom(code){
     code = (code || "").toUpperCase().trim();
     if(!/^[A-Z0-9]{4,12}$/.test(code)){
       showNotice("Room codes are 4-12 letters or numbers.", "error");
       return;
     }
-    if(!secret){
-      showNotice("That link is incomplete. Use the whole link from your other device, or scan its code.", "error");
-      return;
-    }
     clearNotice();
-    currentRoom = { code, secret };
-    keyPromise = null;
-    keyPromiseFor = null;
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(currentRoom)); }catch(e){}
-    history.replaceState(null, "", "/r/" + code + "#k=" + secret);
+    currentRoom = code;
+    try{ localStorage.setItem(STORAGE_KEY, code); }catch(e){}
+    history.replaceState(null, "", "/r/" + code);
     pairScreen.hidden = true;
     app.hidden = false;
     $("roomLabel").textContent = code;
@@ -496,21 +465,21 @@
   }
 
   // ---------- pairing ----------
-  $("startBtn").onclick = () => enterRoom(pending.code, pending.secret);
+  $("startBtn").onclick = () => enterRoom(pendingCode);
 
   function joinFromInput(){
-    const parsed = parseRoomUrl($("joinInput").value);
-    if(!parsed){
-      showNotice("That doesn't look like a room link. Copy the whole thing from your other device.", "error");
+    const code = parseRoomCode($("joinInput").value);
+    if(!code){
+      showNotice("Enter the room code shown on your other device.", "error");
       return;
     }
-    enterRoom(parsed.code, parsed.secret);
+    enterRoom(code);
   }
   $("joinBtn").onclick = joinFromInput;
   $("joinInput").addEventListener("keydown", (e) => { if(e.key === "Enter") joinFromInput(); });
 
   $("shareBtn").onclick = async () => {
-    const url = roomUrl(pending.code, pending.secret);
+    const url = roomUrl(pendingCode);
     if(navigator.share){
       try{ await navigator.share({ title: "clipsync room", url }); return; }catch(e){}
     }
@@ -544,17 +513,17 @@
   });
 
   // ---------- boot ----------
-  const fromUrl = roomFromLocation();
-  if(fromUrl && fromUrl.secret){
-    enterRoom(fromUrl.code, fromUrl.secret);
-  } else if(fromUrl && !fromUrl.secret){
-    // A /r/CODE link with no #k= - either an old bookmark or a code someone
-    // retyped by hand. We can join, but we could never read anything.
-    try{ localStorage.setItem(LEGACY_STORAGE_KEY, fromUrl.code); }catch(e){}
-    showNotice("This link is incomplete, so the room can't be opened. Use the whole link from your other device, or scan its code.", "error");
+  const fromUrl = parseRoomCode(location.href);
+  if(fromUrl){
+    enterRoom(fromUrl);
   } else {
+    // Older builds stored {code, secret}; tolerate both shapes so an upgrade
+    // doesn't strand anyone on the pairing screen.
     let saved = null;
-    try{ saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }catch(e){}
-    if(saved && saved.code && saved.secret) enterRoom(saved.code, saved.secret);
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      saved = raw && raw.charAt(0) === "{" ? (JSON.parse(raw) || {}).code : raw;
+    }catch(e){}
+    if(saved) enterRoom(saved);
   }
 })();

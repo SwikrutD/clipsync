@@ -777,17 +777,6 @@
     }
   }
 
-  /* The join field now accepts a full room link, and the key in the fragment
-     is case-sensitive base64url - so no uppercasing or letter-spacing here. */
-  .join-row input {
-    text-transform: none;
-    letter-spacing: 0.02em;
-    font-size: 12px;
-  }
-  .join-row input::placeholder {
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
 
   /* The hidden attribute is only a UA-stylesheet `display:none`, so any author
      rule that sets display (.presence and .confirm-row both use flex) silently
