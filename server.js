@@ -16,7 +16,8 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 4173;
 const DATA_FILE = path.join(__dirname, "data", "rooms.json");
 const MAX_ITEMS_PER_ROOM = 30;
-const ROOM_TTL_MS = 1000 * 60 * 60 * 24 * 14; // rooms idle 14 days get pruned
+const ROOM_TTL_MS = 1000 * 60 * 60 * 24 * 3; // rooms idle 3 days get pruned
+const MAX_ROOMS = 250;
 const MAX_ENC_LEN = 10 * 1024 * 1024; // guard against abuse independent of the socket.io frame cap
 
 // --- persistence -----------------------------------------------------
@@ -56,9 +57,15 @@ loadRooms();
 setInterval(pruneRooms, 1000 * 60 * 60); // hourly
 
 function getRoom(code) {
-  if (!rooms[code]) rooms[code] = { items: [], lastActive: Date.now() };
-  return rooms[code];
-}
+     if (!rooms[code]) {
+       if (Object.keys(rooms).length >= MAX_ROOMS) {
+         throw new Error("room_limit_reached");
+       }
+       rooms[code] = { items: [], subscriptions: [], lastActive: Date.now() };
+     }
+     if (!rooms[code].subscriptions) rooms[code].subscriptions = [];
+     return rooms[code];
+   }
 
 // --- static + basic routes -------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
@@ -86,9 +93,15 @@ io.on("connection", (socket) => {
     }
     joinedRoom = code;
     socket.join(code);
-    const room = getRoom(code);
-    room.lastActive = Date.now();
-    if (ack) ack({ ok: true, items: room.items });
+    let room;
+   try {
+     room = getRoom(code);
+   } catch (e) {
+     if (ack) ack({ ok: false, error: "room_limit_reached" });
+     return;
+   }
+   room.lastActive = Date.now();
+   if (ack) ack({ ok: true, items: room.items });
     setTimeout(() => io.to(code).emit("presence", roomSize(code)), 50);
   });
 
