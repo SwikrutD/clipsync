@@ -78,7 +78,7 @@ state - it is perfectly happy on a Raspberry Pi or a NAS. Host it yourself if yo
 would rather not trust someone else's server, or just want it on your own LAN.
 
 ```sh
-git clone https://github.com/YOU/clipsync.git
+git clone https://github.com/SwikrutD/clipsync.git
 cd clipsync
 docker compose up -d
 ```
@@ -194,7 +194,7 @@ FATAL: cannot write to /app/data (EACCES)
 ```yaml
 services:
   clipsync:
-    image: ghcr.io/YOU/clipsync:latest    # or build and push your own
+    image: ghcr.io/swikrutd/clipsync:latest  # or build the image yourself
     container_name: clipsync
     user: "568:568"                       # match the dataset owner from step 2
     ports:
