@@ -4,6 +4,27 @@ services:
     container_name: clipsync
     ports:
       - "4173:4173"
+    environment:
+      # Set to 1 only when a reverse proxy in front of this container
+      # overwrites X-Forwarded-For. See "Configuration" in README.md.
+      TRUST_PROXY: "0"
     volumes:
-      - ./data:/app/data
+      # A named volume, not a host bind mount. The container runs as the
+      # unprivileged `node` user, and Docker seeds a fresh named volume with the
+      # ownership of the image's /app/data - so this just works. A bind mount
+      # (`./data:/app/data`) keeps the *host* directory's ownership, which on
+      # Linux is root-owned and would leave the container unable to write; if
+      # you want one, create the directory first and chown it to uid 1000.
+      - clipsync-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4173/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # SIGTERM triggers a synchronous flush of rooms.json; give it room to finish.
+    stop_grace_period: 15s
     restart: unless-stopped
+
+volumes:
+  clipsync-data:

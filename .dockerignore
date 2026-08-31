@@ -2,3 +2,7 @@ node_modules
 data
 public/vendor
 .git
+# README assets - never needed inside the image
+docs
+README.md
+LICENSE

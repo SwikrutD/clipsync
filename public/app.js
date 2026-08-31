@@ -2,6 +2,7 @@
   const $ = (id) => document.getElementById(id);
   const STORAGE_KEY = "clipsync_room";   // the last room code used
   const THEME_KEY = "clipsync_theme";
+  const QR_PANEL_KEY = "clipsync_qr_open";
 
   function randomCode(len=6){
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
@@ -75,6 +76,24 @@
     const current = document.documentElement.getAttribute("data-theme");
     applyTheme(current === "dark" ? "light" : "dark");
   };
+
+  // ---------- secure-context gate ----------
+  // crypto.subtle exists only in a secure context: HTTPS, or localhost. Reached
+  // over plain HTTP on a LAN address or a bare domain - which is exactly how a
+  // self-hosted instance usually gets opened first - it is undefined, and every
+  // send used to die on an unhandled `undefined.importKey` with nothing shown to
+  // the user: the app looked completely healthy and silently dropped everything.
+  // Fail loudly and explain the fix instead.
+  if(!(window.crypto && window.crypto.subtle)){
+    const warn = $("insecureWarning");
+    $("insecureOrigin").textContent = location.origin;
+    $("insecureLocal").textContent = "http://localhost:" + (location.port || "4173");
+    warn.hidden = false;
+    $("pairScreen").hidden = true;
+    $("app").hidden = true;
+    document.querySelector(".footer-note").hidden = true;
+    return;
+  }
 
   // ---------- notices (replaces alert()) ----------
   // alert()/confirm() block the whole page, and the most common failure here -
@@ -153,25 +172,151 @@
   let pendingCode = randomCode();
   $("newCode").textContent = pendingCode;
 
-  function renderQR(url){
-    const host = $("qr");
+  function renderQR(host, url, code, size){
+    if(!host) return;
     host.innerHTML = "";
     const qr = qrcode(0, "M");
     qr.addData(url);
     qr.make();
-    host.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    // QR decoding requires a 4-module light "quiet zone" around the symbol
+    // (ISO/IEC 18004). With margin 0 the modules ran flush to the edge of the
+    // library's white background rect, and in dark mode the card behind it is
+    // near-black - putting the code in exactly the tight high-contrast frame
+    // that scanners struggle with. The library measures margin in units, not
+    // modules, so the quiet zone is 4 * cellSize; drawing it inside the SVG
+    // keeps it correct whatever colour the card behind it happens to be.
+    const CELL = 4;
+    host.innerHTML = qr.createSvgTag({ cellSize: CELL, margin: 4 * CELL, scalable: true });
     const svg = host.querySelector("svg");
     if(svg){
-      svg.setAttribute("width", "148");
-      svg.setAttribute("height", "148");
+      svg.setAttribute("width", String(size));
+      svg.setAttribute("height", String(size));
       svg.setAttribute("role", "img");
-      svg.setAttribute("aria-label", "QR code linking to room " + pendingCode);
+      svg.setAttribute("aria-label", "QR code linking to room " + code);
     }
   }
-  renderQR(roomUrl(pendingCode));
 
   let socket = null;
-  let currentRoom = null; // the room code
+  let currentRoom = null; // the room code once we are in a room
+  let watchCode = null;   // room whose QR is showing on the pairing screen
+  let joined = false;     // the server has acknowledged our join
+
+  // Anything composed while the connection is down waits here.
+  //
+  // socket.io buffers emits made while disconnected and flushes them the moment
+  // the transport reconnects - which is *before* our own "connect" handler gets
+  // to re-join the room. The server drops a push from a socket that is not in a
+  // room, so those messages vanished silently: composer cleared, no error, never
+  // delivered. Holding them here and sending them after the join is
+  // acknowledged is the difference between "sent" and "gone".
+  const MAX_OUTBOX = 20;
+  let outbox = [];
+
+  function transmit(payload){
+    if(socket && socket.connected && joined){
+      socket.emit("push", payload);
+      return true;
+    }
+    outbox.push(payload);
+    if(outbox.length > MAX_OUTBOX) outbox.shift();
+    return false;
+  }
+
+  function flushOutbox(){
+    if(!outbox.length) return;
+    const queued = outbox;
+    outbox = [];
+    for(const payload of queued) socket.emit("push", payload);
+    showNotice(queued.length === 1
+      ? "Back online — your queued item was sent."
+      : `Back online — ${queued.length} queued items were sent.`, "info");
+  }
+
+  // One socket for the whole page life. It is opened on the pairing screen too
+  // (to watch for a scan) and simply re-used on join, so a reconnect never
+  // strands us: the connect handler re-establishes whichever of the two
+  // subscriptions is current.
+  function ensureSocket(){
+    if(socket) return socket;
+    socket = io({ transports: ["websocket", "polling"] });
+    socket.on("connect", () => {
+      if(currentRoom) sendJoin();
+      else if(watchCode) sendWatch();
+    });
+    socket.on("disconnect", () => {
+      joined = false;
+      if(currentRoom) setPresence(null);
+    });
+    socket.on("item", (item) => { if(currentRoom) prependItem(item); });
+    socket.on("cleared", () => {
+      if(!currentRoom) return;
+      $("list").innerHTML = "";
+      renderEmptyIfNeeded();
+    });
+    socket.on("presence", (count) => { if(currentRoom) setPresence(count); });
+    socket.on("peer-joined", (code) => followScan(code));
+    return socket;
+  }
+
+  function sendJoin(){
+    socket.emit("join", currentRoom, (res) => {
+      if(!res || !res.ok){
+        const reason = res && res.error;
+        showNotice(
+          reason === "room_limit_reached" ? "This server is at its room limit right now. Try again shortly." :
+          reason === "rate_limited" ? "Too many join attempts from here. Wait a moment and try again." :
+          "Couldn't join that room.", "error");
+        return;
+      }
+      joined = true;
+      renderList(res.items || []);
+      flushOutbox();
+    });
+  }
+
+  // ---------- follow-your-own-QR ----------
+  // While the pairing screen is up we subscribe to the displayed room code as a
+  // watcher (no presence, no items). The moment a scanning device actually
+  // joins, the server nudges us and we walk into the same room - so scanning
+  // the QR on your laptop with your phone pairs *both* ends, instead of leaving
+  // the laptop sitting on a screen it already told you to scan.
+  function sendWatch(){
+    socket.emit("watch", watchCode, (res) => {
+      if(res && res.ok && res.occupied) followScan(watchCode);
+    });
+  }
+
+  function startWatch(code){
+    watchCode = code;
+    ensureSocket();
+    if(socket.connected) sendWatch();
+  }
+
+  function stopWatch(){
+    if(watchCode && socket && socket.connected) socket.emit("unwatch");
+    watchCode = null;
+  }
+
+  function followScan(code){
+    if(currentRoom || !watchCode || code !== watchCode) return;
+    enterRoom(code);
+    showNotice("Another device scanned the code — this one joined room " + code + " too.", "info");
+  }
+
+  // ---------- in-room QR panel ----------
+  let qrPanelOpen = true;
+  try{ qrPanelOpen = localStorage.getItem(QR_PANEL_KEY) !== "0"; }catch(e){}
+
+  function setQrPanel(open){
+    qrPanelOpen = open;
+    $("roomQrPanel").hidden = !open;
+    const btn = $("roomQrToggle");
+    btn.textContent = open ? "hide QR" : "show QR";
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    try{ localStorage.setItem(QR_PANEL_KEY, open ? "1" : "0"); }catch(e){}
+  }
+
+  $("roomQrToggle").onclick = () => setQrPanel(!qrPanelOpen);
 
   function enterRoom(code){
     code = (code || "").toUpperCase().trim();
@@ -180,33 +325,22 @@
       return;
     }
     clearNotice();
+    stopWatch();
+    if(code !== currentRoom) outbox = [];
+    joined = false;
     currentRoom = code;
     try{ localStorage.setItem(STORAGE_KEY, code); }catch(e){}
     history.replaceState(null, "", "/r/" + code);
     pairScreen.hidden = true;
     app.hidden = false;
     $("roomLabel").textContent = code;
-    connect(code);
-  }
+    renderQR($("roomQr"), roomUrl(code), code, 168);
+    $("roomQrCode").textContent = code;
+    $("roomQrUrl").textContent = location.host;
+    setQrPanel(qrPanelOpen);
 
-  function connect(code){
-    if(socket) socket.disconnect();
-    socket = io({ transports: ["websocket", "polling"] });
-    socket.on("connect", () => {
-      socket.emit("join", code, (res) => {
-        if(!res || !res.ok){
-          showNotice(res && res.error === "room_limit_reached"
-            ? "This server is at its room limit right now. Try again shortly."
-            : "Couldn't join that room.", "error");
-          return;
-        }
-        renderList(res.items || []);
-      });
-    });
-    socket.on("disconnect", () => setPresence(null));
-    socket.on("item", (item) => prependItem(item));
-    socket.on("cleared", () => { $("list").innerHTML = ""; renderEmptyIfNeeded(); });
-    socket.on("presence", (count) => setPresence(count));
+    ensureSocket();
+    if(socket.connected) sendJoin();
   }
 
   function setPresence(count){
@@ -278,10 +412,18 @@
     const actions = document.createElement("div");
     actions.className = "item-actions";
 
-    if(item.type === "file" && !item.undecryptable){
+    // Only ever hand a data: URL to <img src> / <a href>. The payload is
+    // decrypted room content, but "someone else in the room" is not the same
+    // trust level as "this page's own code" - a javascript: URL smuggled in
+    // here would run on click, so refuse anything that is not a data: URL.
+    const dataUrl = typeof item.dataUrl === "string" && /^data:/i.test(item.dataUrl)
+      ? item.dataUrl
+      : null;
+
+    if(item.type === "file" && !item.undecryptable && dataUrl){
       if(item.fileType && item.fileType.startsWith("image/")){
         const img = document.createElement("img");
-        img.src = item.dataUrl;
+        img.src = dataUrl;
         img.alt = item.fileName || "Shared image";
         div.appendChild(img);
       } else {
@@ -296,7 +438,7 @@
       btn.textContent = "Save to device";
       btn.onclick = () => {
         const a = document.createElement("a");
-        a.href = item.dataUrl;
+        a.href = dataUrl;
         a.download = item.fileName || "file";
         document.body.appendChild(a);
         a.click();
@@ -306,7 +448,9 @@
     } else {
       const p = document.createElement("div");
       p.className = "item-text";
-      p.textContent = item.text || "";
+      p.textContent = item.type === "file"
+        ? "⚠️ Dropped a file attachment that wasn't in a readable format."
+        : (item.text || "");
       div.appendChild(p);
       if(!item.undecryptable){
         const btn = document.createElement("button");
@@ -370,8 +514,9 @@
     text = (text || "").trim();
     if(!text || !socket || !currentRoom) return false;
     const enc = await encryptPayload(currentRoom, { text });
-    socket.emit("push", { type: "text", enc, device: deviceLabel() });
+    const sent = transmit({ type: "text", enc, device: deviceLabel() });
     $("composer").value = "";
+    if(!sent) showNotice("You're offline — this will send as soon as you reconnect.", "info");
     return true;
   }
 
@@ -390,7 +535,9 @@
           fileType: file.type,
           dataUrl: reader.result
         });
-        socket.emit("push", { type: "file", enc, device: deviceLabel() });
+        if(!transmit({ type: "file", enc, device: deviceLabel() })){
+          showNotice("You're offline — this file will send as soon as you reconnect.", "info");
+        }
       }catch(e){
         showNotice("Couldn't encrypt that file.", "error");
       }
@@ -465,6 +612,7 @@
   }
 
   // ---------- pairing ----------
+  renderQR($("qr"), roomUrl(pendingCode), pendingCode, 188);
   $("startBtn").onclick = () => enterRoom(pendingCode);
 
   function joinFromInput(){
@@ -478,13 +626,16 @@
   $("joinBtn").onclick = joinFromInput;
   $("joinInput").addEventListener("keydown", (e) => { if(e.key === "Enter") joinFromInput(); });
 
-  $("shareBtn").onclick = async () => {
-    const url = roomUrl(pendingCode);
+  async function shareRoom(code, btn){
+    const url = roomUrl(code);
     if(navigator.share){
       try{ await navigator.share({ title: "clipsync room", url }); return; }catch(e){}
     }
-    copyText(url, $("shareBtn"));
-  };
+    copyText(url, btn);
+  }
+  $("shareBtn").onclick = () => shareRoom(pendingCode, $("shareBtn"));
+  $("roomShareBtn").onclick = () => shareRoom(currentRoom, $("roomShareBtn"));
+  $("roomCopyCodeBtn").onclick = () => copyText(currentRoom, $("roomCopyCodeBtn"));
 
   $("leaveBtn").onclick = () => {
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
@@ -512,6 +663,38 @@
     }
   });
 
+  // The socket only notices a dead network when its ping times out, which by
+  // default takes tens of seconds - a long time to show a confident "2 devices"
+  // to someone whose wifi just dropped. The browser knows immediately, so use
+  // that for the indicator and let the socket catch up in its own time.
+  window.addEventListener("offline", () => { if(currentRoom){ joined = false; setPresence(null); } });
+  window.addEventListener("online", () => {
+    if(!currentRoom || !socket) return;
+    if(socket.connected){
+      // A short outage can end before the ping timeout notices, leaving a
+      // perfectly live socket behind a "reconnecting" label with nothing left
+      // to fire and clear it. Re-joining is idempotent, costs no rate-limit
+      // budget for the room we are already in, and makes the server re-broadcast
+      // presence - which puts the indicator back in step with reality.
+      sendJoin();
+    } else {
+      socket.connect();
+    }
+  });
+
+  // ---------- service worker ----------
+  // Makes the app installable and lets the pairing screen render without a
+  // network. Service workers only run on a secure context, and localhost counts
+  // as one - registering unconditionally would just log a console error on a
+  // plain-http LAN deployment, which is a perfectly reasonable way to run this.
+  if("serviceWorker" in navigator && window.isSecureContext){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        /* not fatal - the app works fine without it */
+      });
+    });
+  }
+
   // ---------- boot ----------
   const fromUrl = parseRoomCode(location.href);
   if(fromUrl){
@@ -524,6 +707,11 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       saved = raw && raw.charAt(0) === "{" ? (JSON.parse(raw) || {}).code : raw;
     }catch(e){}
-    if(saved) enterRoom(saved);
+    if(saved){
+      enterRoom(saved);
+    } else {
+      // Pairing screen is up, so listen for someone scanning the QR we drew.
+      startWatch(pendingCode);
+    }
   }
 })();

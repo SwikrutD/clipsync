@@ -5,11 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="referrer" content="no-referrer" />
 <title>clipsync</title>
-<link rel="icon" href="data:," />
+<meta name="description" content="Cross-device clipboard sync over the browser - no app install required." />
+<link rel="icon" href="/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<!-- Matches --bg in style.css for each theme, so the browser chrome does not
+     flash the wrong colour around an installed window. -->
+<meta name="theme-color" content="#f4f4f2" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="clipsync" />
 <link rel="stylesheet" href="/vendor/fonts.css" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+<noscript>
+  <p class="noscript-note">clipsync needs JavaScript: the room pairing, the live sync and the
+  in-browser encryption all run on this device. Enable it for this site to continue.</p>
+</noscript>
+
 <div class="ferro-universe" aria-hidden="true">
   <div class="ferro-blob blob-1"></div>
   <div class="ferro-blob blob-2"></div>
@@ -25,6 +39,23 @@
   </header>
 
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+  <div id="insecureWarning" class="pair-card insecure-card" hidden>
+    <h1>clipsync needs a secure connection</h1>
+    <p>
+      Browsers only expose the Web Crypto API &mdash; the thing that encrypts every
+      item before it leaves this device &mdash; on <b>HTTPS</b> pages, or on
+      <b>localhost</b>. This page was loaded over plain HTTP from
+      <span id="insecureOrigin" class="insecure-origin"></span>, so clipsync cannot
+      encrypt anything and has stopped rather than send your clipboard in the clear.
+    </p>
+    <p class="insecure-fix">Two ways to fix it:</p>
+    <ul class="insecure-list">
+      <li>Put clipsync behind a reverse proxy with a TLS certificate and reach it over <b>https://</b>. This is the right answer for a shared or internet-facing instance.</li>
+      <li>Or open it as <b id="insecureLocal">http://localhost:4173</b> on the machine that runs it, which browsers treat as secure.</li>
+    </ul>
+    <p class="pair-hint">Full instructions are in the project README under &ldquo;Self-hosting&rdquo;.</p>
+  </div>
 
   <div id="pairScreen" class="pair-card">
     <h1>Patch this device in</h1>
@@ -54,7 +85,6 @@
           <input type="file" id="fileInput" style="display:none" aria-hidden="true" tabindex="-1" />
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <span class="hint" id="sendHint"></span>
           <button type="button" class="small primary" id="sendBtn">Send</button>
         </div>
       </div>
@@ -62,7 +92,22 @@
 
     <div class="section-label">
       <span>Room <span id="roomLabel" class="room-chip"></span></span>
-      <button type="button" class="linkish" id="leaveBtn">leave room</button>
+      <span class="section-actions">
+        <button type="button" class="linkish" id="roomQrToggle" aria-expanded="true" aria-controls="roomQrPanel">hide QR</button>
+        <button type="button" class="linkish" id="leaveBtn">leave room</button>
+      </span>
+    </div>
+
+    <div id="roomQrPanel" class="room-qr">
+      <div id="roomQr" class="room-qr-code"></div>
+      <div class="room-qr-side">
+        <p class="room-qr-title">Add another device</p>
+        <p class="room-qr-hint">Scan this, or open <span id="roomQrUrl" class="room-qr-url"></span> and enter <b id="roomQrCode"></b>.</p>
+        <div class="room-qr-actions">
+          <button type="button" class="small primary" id="roomShareBtn">Share link</button>
+          <button type="button" class="small ghost" id="roomCopyCodeBtn">Copy code</button>
+        </div>
+      </div>
     </div>
 
     <div id="list"></div>
