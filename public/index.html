@@ -34,6 +34,7 @@
     <div class="brand"><span class="jack"></span><b>clipsync</b></div>
     <div style="display:flex; align-items:center; gap:8px;">
       <div class="presence" id="presence" hidden><span class="dot"></span><span id="presenceCount"></span></div>
+      <button type="button" class="ghost small icon-btn" id="notifyToggle" aria-label="Notify me when a clip arrives" title="Notify me when a clip arrives" aria-pressed="false" hidden>🔕</button>
       <button type="button" class="ghost small icon-btn" id="themeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
     </div>
   </header>
@@ -111,6 +112,10 @@
     </div>
 
     <div id="list"></div>
+  </div>
+
+  <div id="dropZone" class="drop-zone" hidden aria-hidden="true">
+    <div class="drop-zone-inner">Drop to send to this room</div>
   </div>
 
   <div class="footer-note">

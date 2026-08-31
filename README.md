@@ -27,8 +27,14 @@ available inside the room, so adding a third device is one tap, not a re-pair.
 - Type in the box and hit **Send**, or `Ctrl`/`⌘ + Enter`.
 - **Paste** anything into the page and it sends automatically - including
   screenshots straight from the clipboard.
-- **＋ File / image** for anything up to about 4.5 MB.
+- **＋ File / image**, or just **drag a file onto the page**, up to about
+  4.5 MB.
 - Every item gets a **Copy** button on the other device; files get **Save**.
+- Links in a clip are clickable, so a URL sent from your phone is one click on
+  the laptop rather than a copy and paste.
+- Leave it open in a pinned tab: the tab title shows a count when clips arrive
+  while you are looking elsewhere, and the bell in the header turns that into a
+  desktop notification if you want one.
 
 **Add it to your home screen.** clipsync is an installable web app. On iOS use
 *Share → Add to Home Screen*; on Android or desktop Chrome, use the install

@@ -487,6 +487,16 @@
     color: var(--iron-black);
   }
 
+  /* URLs inside a clip are turned into real links; make them look like it. */
+  .item-text a {
+    color: var(--iron-black);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    word-break: break-all;
+  }
+  .item-text a:hover { text-decoration-thickness: 2px; }
+
   .item img { 
     max-width: 100%; 
     border-radius: 14px; 
@@ -566,6 +576,38 @@
     .code-plate { font-size: 26px; letter-spacing: 0.16em; padding: 14px 20px; }
     .join-row { flex-direction: column; }
     .join-row button { width: 100%; }
+  }
+
+  /* ---------- Drag-and-drop overlay ----------
+     pointer-events:none is load-bearing: with pointer events on, this element
+     becomes the drop target as soon as it appears, and the drop event fires
+     against it rather than the document handler that does the work. */
+  .drop-zone {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    pointer-events: none;
+    background: rgba(20, 20, 20, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: magneticCondense 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  :root[data-theme="dark"] .drop-zone { background: rgba(0, 0, 0, 0.6); }
+
+  .drop-zone-inner {
+    border: 2px dashed #ffffff;
+    border-radius: 28px 18px 34px 18px;
+    padding: 40px 56px;
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-align: center;
+    max-width: 100%;
   }
 
   /* ---------- Icon buttons (theme toggle, notification bell) ---------- */

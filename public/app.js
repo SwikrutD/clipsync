@@ -3,6 +3,8 @@
   const STORAGE_KEY = "clipsync_room";   // the last room code used
   const THEME_KEY = "clipsync_theme";
   const QR_PANEL_KEY = "clipsync_qr_open";
+  const NOTIFY_KEY = "clipsync_notify";
+  const BASE_TITLE = document.title;
 
   function randomCode(len=6){
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I confusion
@@ -247,7 +249,11 @@
       joined = false;
       if(currentRoom) setPresence(null);
     });
-    socket.on("item", (item) => { if(currentRoom) prependItem(item); });
+    socket.on("item", (item) => {
+      if(!currentRoom) return;
+      prependItem(item);
+      announceArrival(item);
+    });
     socket.on("cleared", () => {
       if(!currentRoom) return;
       $("list").innerHTML = "";
@@ -399,6 +405,56 @@
     list.prepend(buildItemEl(await decorateItem(item)));
   }
 
+  // Turn bare URLs inside a clip into real links. Built out of text nodes and
+  // anchor elements rather than innerHTML: clip contents come from whoever else
+  // is in the room, so it never becomes markup. Only http(s) survives the
+  // URL() check, which is what keeps javascript: and data: out.
+  const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
+
+  function trimUrlTail(raw){
+    let s = raw;
+    for(;;){
+      const before = s;
+      s = s.replace(/[.,;:!?'"]+$/, "");
+      // A closing bracket is part of the URL only if something opened it.
+      const last = s.slice(-1);
+      if(last === ")" || last === "]" || last === "}"){
+        const open = last === ")" ? "(" : last === "]" ? "[" : "{";
+        const opens = s.split(open).length - 1;
+        const closes = s.split(last).length - 1;
+        if(closes > opens) s = s.slice(0, -1);
+      }
+      if(s === before) return s;
+    }
+  }
+
+  function safeHttpUrl(text){
+    try{
+      const u = new URL(text);
+      return (u.protocol === "http:" || u.protocol === "https:") ? u.href : null;
+    }catch(e){ return null; }
+  }
+
+  function fillLinkified(container, text){
+    URL_RE.lastIndex = 0;
+    let cursor = 0, m;
+    while((m = URL_RE.exec(text)) !== null){
+      const candidate = trimUrlTail(m[0]);
+      const href = safeHttpUrl(candidate);
+      if(!href) continue;
+      if(m.index > cursor) container.appendChild(document.createTextNode(text.slice(cursor, m.index)));
+      const a = document.createElement("a");
+      a.href = href;
+      a.textContent = candidate;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      container.appendChild(a);
+      cursor = m.index + candidate.length;
+      URL_RE.lastIndex = cursor;
+    }
+    container.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
   function buildItemEl(item){
     const div = document.createElement("div");
     div.className = "item";
@@ -448,9 +504,13 @@
     } else {
       const p = document.createElement("div");
       p.className = "item-text";
-      p.textContent = item.type === "file"
-        ? "⚠️ Dropped a file attachment that wasn't in a readable format."
-        : (item.text || "");
+      if(item.type === "file"){
+        p.textContent = "⚠️ Dropped a file attachment that wasn't in a readable format.";
+      }else if(item.undecryptable){
+        p.textContent = item.text || "";
+      }else{
+        fillLinkified(p, item.text || "");
+      }
       div.appendChild(p);
       if(!item.undecryptable){
         const btn = document.createElement("button");
@@ -680,6 +740,130 @@
     } else {
       socket.connect();
     }
+  });
+
+  // ---------- arrivals while you are looking elsewhere ----------
+  // The natural way to use clipsync is to leave it open in a pinned tab, where
+  // nothing signalled that a clip had landed. The title badge costs no
+  // permission at all; the notification is opt-in behind the bell.
+  let unseen = 0;
+  let notifyOn = false;
+  try{ notifyOn = localStorage.getItem(NOTIFY_KEY) === "1"; }catch(e){}
+
+  const notifyBtn = $("notifyToggle");
+  const canNotify = "Notification" in window;
+
+  function paintNotifyBtn(){
+    if(!notifyBtn) return;
+    const on = notifyOn && canNotify && Notification.permission === "granted";
+    notifyBtn.textContent = on ? "🔔" : "🔕";
+    notifyBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    notifyBtn.setAttribute("aria-label", on ? "Turn off arrival notifications" : "Notify me when a clip arrives");
+    notifyBtn.title = on ? "Notifications on" : "Notify me when a clip arrives";
+  }
+
+  if(canNotify){
+    notifyBtn.hidden = false;
+    paintNotifyBtn();
+    notifyBtn.onclick = async () => {
+      if(notifyOn && Notification.permission === "granted"){
+        notifyOn = false;
+        try{ localStorage.setItem(NOTIFY_KEY, "0"); }catch(e){}
+        paintNotifyBtn();
+        return;
+      }
+      let perm = Notification.permission;
+      // Only ask when the user actually asks for it - a prompt on page load is
+      // the fastest way to get permanently denied.
+      if(perm === "default"){
+        try{ perm = await Notification.requestPermission(); }catch(e){ perm = "denied"; }
+      }
+      if(perm !== "granted"){
+        showNotice("Your browser is blocking notifications for this site. The tab title will still show new clips.", "error");
+        notifyOn = false;
+      }else{
+        notifyOn = true;
+        showNotice("Notifications on. You'll be told when a clip arrives while this tab is in the background.", "info");
+      }
+      try{ localStorage.setItem(NOTIFY_KEY, notifyOn ? "1" : "0"); }catch(e){}
+      paintNotifyBtn();
+    };
+  }
+
+  function announceArrival(item){
+    // Only when you are not already looking at the page - otherwise the item
+    // sliding into the list is the notification.
+    if(!document.hidden) return;
+    unseen++;
+    document.title = "(" + unseen + ") " + BASE_TITLE;
+    if(!notifyOn || !canNotify || Notification.permission !== "granted") return;
+    try{
+      // Deliberately no clip contents: these surface on lock screens.
+      const n = new Notification("clipsync", {
+        body: (item.type === "file" ? "A file arrived from " : "A clip arrived from ") + (item.device || "another device"),
+        tag: "clipsync-arrival",
+        icon: "/icons/icon-192.png"
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+    }catch(e){ /* some browsers refuse to construct these outside a worker */ }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden) return;
+    unseen = 0;
+    document.title = BASE_TITLE;
+  });
+
+  // ---------- drag and drop ----------
+  // Paste and the file picker were already there; dropping is the third thing
+  // anyone tries on a desktop.
+  const dropZone = $("dropZone");
+  const MAX_DROP_FILES = 10;
+  let dragDepth = 0;
+
+  function showDrop(on){
+    dragDepth = on ? dragDepth : 0;
+    if(dropZone) dropZone.hidden = !on;
+  }
+
+  function hasFiles(e){
+    const t = e.dataTransfer && e.dataTransfer.types;
+    return !!t && Array.prototype.indexOf.call(t, "Files") !== -1;
+  }
+
+  document.addEventListener("dragenter", (e) => {
+    if(app.hidden || !hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth++;
+    showDrop(true);
+  });
+
+  document.addEventListener("dragover", (e) => {
+    if(app.hidden || !hasFiles(e)) return;
+    // Without this the browser navigates to the dropped file instead.
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+
+  document.addEventListener("dragleave", (e) => {
+    if(app.hidden) return;
+    // dragleave fires for every child element crossed, so count depth rather
+    // than hiding on the first one.
+    dragDepth = Math.max(0, dragDepth - 1);
+    if(dragDepth === 0) showDrop(false);
+  });
+
+  document.addEventListener("drop", (e) => {
+    if(app.hidden) return;
+    e.preventDefault();
+    showDrop(false);
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if(!files || !files.length) return;
+    const batch = Array.prototype.slice.call(files, 0, MAX_DROP_FILES);
+    if(files.length > batch.length){
+      showNotice("Dropped " + files.length + " files - sending the first " + MAX_DROP_FILES + ".", "info");
+    }
+    for(const file of batch) sendFile(file);
   });
 
   // ---------- service worker ----------
